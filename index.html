@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Ping stats for %s</title>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+
+    <script>
+      function options(title) {
+        return {
+          'title':  title,
+          'width':  1000,
+          'height': 400,
+          'hAxis':  { 'title': 'Last Minute' },
+          'vAxis':  { 'title': 'Average Ping' } };
+      }
+
+      function listen() {
+        var charts     = document.getElementById('hosts');
+        var dataTables = {}
+        var gCharts    = {}
+
+        if (!!window.EventSource) {
+          var source = new EventSource('/events.json');
+          console.log("hello");
+          source.addEventListener('hosts', function(e) {
+            console.log(e.data);
+            var data = JSON.parse(e.data);
+            console.log(data);
+            data.forEach(function(name) {
+              var chart = document.createElement('div');
+              chart.setAttribute('id', name);
+              charts.appendChild(chart);
+
+              var gchart = new google.visualization.LineChart(chart);
+              var table = new google.visualization.DataTable();
+              table.addColumn('string', 'time');
+              table.addColumn('number', 'ping');
+
+              gCharts[name]    = gchart;
+              dataTables[name] = table;
+            });
+          }, false);
+          source.addEventListener('update', function(e) {
+            var data  = JSON.parse(e.data);
+            console.log("update");
+            console.log(e.data);
+            var chart = gCharts[data.host];
+            var table = dataTables[data.host];
+
+            if(chart && table) {
+              var count = table.getNumberOfRows();
+              table.addRow(['', data.avg_delta]);
+              if(count > 60) {
+                table.removeRow(0);
+              }
+              chart.draw(table, options(data.title));
+            }
+          }, false);
+        } else {
+          alert('your browser is not supported');
+        }
+      }
+
+      google.load('visualization', '1.0', {'packages':['corechart']});
+      google.load("jquery", "1.7.1");
+      google.setOnLoadCallback(listen);
+    </script>
+  </head>
+  <body>
+    <div id="hosts">
+    </div>
+  </body>
+</html>
+
